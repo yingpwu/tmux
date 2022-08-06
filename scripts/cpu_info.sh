@@ -1,58 +1,42 @@
 #!/usr/bin/env bash
-# setting the locale, some users have issues with different locales, this forces the correct one
-export LC_ALL=en_US.UTF-8
 
-current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source $current_dir/utils.sh
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-get_percent()
-{
-  case $(uname -s) in
-    Linux)
-      percent=$(LC_NUMERIC=en_US.UTF-8 top -bn2 -d 0.01 | grep "Cpu(s)" | tail -1 | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')
-      normalize_percent_len $percent
-      ;;
+# shellcheck source=scripts/helpers.sh
+source "$CURRENT_DIR/helpers.sh"
 
-    Darwin)
-      cpuvalue=$(ps -A -o %cpu | awk -F. '{s+=$1} END {print s}')
-      cpucores=$(sysctl -n hw.logicalcpu)
-      cpuusage=$(( cpuvalue / cpucores ))
-      percent="$cpuusage%"
-      normalize_percent_len $percent
-      ;;
+cpu_percentage_format="%3.1f%%"
 
-    CYGWIN*|MINGW32*|MSYS*|MINGW*)
-      # TODO - windows compatability
-      ;;
-  esac
-}
+print_cpu_percentage() {
+  cpu_percentage_format=$(get_tmux_option "@cpu_percentage_format" "$cpu_percentage_format")
 
-get_load() {
-  case $(uname -s) in
-  Linux | Darwin)
-    loadavg=$(uptime | awk -F'[a-z]:' '{ print $2}' | sed 's/,//g')
-    echo $loadavg
-    ;;
+  if command_exists "iostat"; then
 
-  CYGWIN* | MINGW32* | MSYS* | MINGW*)
-    # TODO - windows compatability
-    ;;
-  esac
+    if is_linux_iostat; then
+      cached_eval iostat -c 1 2 | sed '/^\s*$/d' | tail -n 1 | awk -v format="$cpu_percentage_format" '{usage=100-$NF} END {printf(format, usage)}' | sed 's/,/./'
+    elif is_osx; then
+      cached_eval iostat -c 2 disk0 | sed '/^\s*$/d' | tail -n 1 | awk -v format="$cpu_percentage_format" '{usage=100-$6} END {printf(format, usage)}' | sed 's/,/./'
+    elif is_freebsd || is_openbsd; then
+      cached_eval iostat -c 2 | sed '/^\s*$/d' | tail -n 1 | awk -v format="$cpu_percentage_format" '{usage=100-$NF} END {printf(format, usage)}' | sed 's/,/./'
+    else
+      echo "Unknown iostat version please create an issue"
+    fi
+  elif command_exists "sar"; then
+    cached_eval sar -u 1 1 | sed '/^\s*$/d' | tail -n 1 | awk -v format="$cpu_percentage_format" '{usage=100-$NF} END {printf(format, usage)}' | sed 's/,/./'
+  else
+    if is_cygwin; then
+      usage="$(cached_eval WMIC cpu get LoadPercentage | grep -Eo '^[0-9]+')"
+      # shellcheck disable=SC2059
+      printf "$cpu_percentage_format" "$usage"
+    else
+      load=$(cached_eval ps -aux | awk '{print $3}' | tail -n+2 | awk '{s+=$1} END {print s}')
+      cpus=$(cpus_number)
+      echo "$load $cpus" | awk -v format="$cpu_percentage_format" '{printf format, $1/$2}'
+    fi
+  fi
 }
 
 main() {
-  # storing the refresh rate in the variable RATE, default is 5
-  RATE=$(get_tmux_option "@dracula-refresh-rate" 5)
-  cpu_load=$(get_tmux_option "@dracula-cpu-display-load" false)
-  if [ "$cpu_load" = true ]; then
-    echo "$(get_load)"
-  else
-    cpu_label=$(get_tmux_option "@dracula-cpu-usage-label" "CPU")
-    cpu_percent=$(get_percent)
-    echo "$cpu_label $cpu_percent"
-  fi
-  sleep $RATE
+  print_cpu_percentage
 }
-
-# run main driver
 main
