@@ -17,7 +17,11 @@ Configuration and options can be found at [draculatheme.com/tmux](https://dracul
 - Support for powerline
 - Day, date, time, timezone
 - Current location based on network with temperature and forecast icon (if available)
-- Network connection status, bandwidth and SSID
+
+- Network connection status, bandwidth and SSID (bandwidth replace by xamut/tmux-network-bandwidth)(Requirements macOS: 
+brew install gawk coreutils
+Linux: apt-get install gawk net-tools coreutils)
+
 - Git branch and status
 - Battery percentage and AC power connection status
 - Refresh rate control
