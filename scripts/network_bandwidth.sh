@@ -22,35 +22,35 @@ done
 RXDIF=$(echo $(((RXBN - RXB) * 5  )))
 TXDIF=$(echo $(((TXBN - TXB) * 5  )))
 
-SPEEDU="^B/s"
-SPEEDD="vB/s"
+SPEEDU="B/s"
+SPEEDD="B/s"
 if [ $RXDIF -ge 10240 ]; then
-	SPEEDD="vKi/s"
+	SPEEDD="Ki/s"
 	RXDIF=$(echo $((RXDIF / 10240 )) )
 fi
 
 if [ $TXDIF -ge 10240 ]; then
-	SPEEDU="vKi/s"
+	SPEEDU="Ki/s"
 	TXDIF=$(echo $((TXDIF / 10240 )) )
 fi
 
 if [ $RXDIF -ge 10240 ]; then
-	SPEEDD="vMi/s"
+	SPEEDD="Mi/s"
 	RXDIF=$(echo $((RXDIF / 10240 )) )
 fi
 
 if [ $TXDIF -ge 10240 ]; then
-	SPEEDU="vMi/s"
+	SPEEDU="Mi/s"
 	TXDIF=$(echo $((TXDIF / 10240 )) )
 fi
 
 if [ $RXDIF -ge 10240 ]; then
-	SPEEDD="vGi/s"
+	SPEEDD="Gi/s"
 	RXDIF=$(echo $((RXDIF / 10240 )) )
 fi
 
 if [ $TXDIF -ge 10240 ]; then
-	SPEEDU="vGi/s"
+	SPEEDU="Gi/s"
 	TXDIF=$(echo $((TXDIF / 10240 )) )
 fi
 
@@ -71,4 +71,4 @@ if [ $TXDIFF -ne 0 ]; then
 fi
 
 
-echo "$RXDIF $SPEEDD $TXDIF $SPEEDU"
+echo "↓$RXDIF $SPEEDD • ↑$TXDIF $SPEEDU"
