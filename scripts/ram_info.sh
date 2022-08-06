@@ -9,7 +9,7 @@ get_percent()
 {
   case $(uname -s) in
     Linux)
-      total_mem_gb=$(free -g | awk '/^Mem/ {print $2}')
+      total_mem_gb=$(free -h | awk '/^Mem/ {print $2}'|sed 's/Gi//g')
       used_mem=$(free -g | awk '/^Mem/ {print $3}')
       total_mem=$(free -h | awk '/^Mem/ {print $2}')
       if (( $total_mem_gb == 0)); then
