@@ -1,51 +1,76 @@
 #!/usr/bin/env bash
 
-INTERVAL="1"  # update interval in seconds
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$CURRENT_DIR/helpers.sh"
 
-network_name=$(tmux show-option -gqv "@dracula-network-bandwidth")
+
+get_bandwidth_for_osx() {
+  netstat -ibn | awk 'FNR > 1 {
+    interfaces[$1 ":bytesReceived"] = $(NF-4);
+    interfaces[$1 ":bytesSent"]     = $(NF-1);
+  } END {
+    for (itemKey in interfaces) {
+      split(itemKey, keys, ":");
+      interface = keys[1]
+      dataKind = keys[2]
+      sum[dataKind] += interfaces[itemKey]
+    }
+
+    print sum["bytesReceived"], sum["bytesSent"]
+  }'
+}
+
+get_bandwidth_for_linux() {
+  netstat -ie | awk '
+    match($0, /RX([[:space:]]packets[[:space:]][[:digit:]]+)?[[:space:]]+bytes[:[:space:]]([[:digit:]]+)/, rx) { rx_sum+=rx[2]; }
+    match($0, /TX([[:space:]]packets[[:space:]][[:digit:]]+)?[[:space:]]+bytes[:[:space:]]([[:digit:]]+)/, tx) { tx_sum+=tx[2]; }
+    END { print rx_sum, tx_sum }
+  '
+}
+
+get_bandwidth() {
+  local os="$1"
+
+  case $os in
+    osx)
+      echo -n $(get_bandwidth_for_osx)
+      return 0
+      ;;
+    linux)
+      echo -n $(get_bandwidth_for_linux)
+      return 0
+      ;;
+    *)
+      echo -n "0 0"
+      return 1
+      ;;
+  esac
+}
+
+format_speed() {
+  local padding=$(get_tmux_option "@tmux-network-bandwidth-padding" 5)
+  numfmt --to=iec-i --suffix "B/s" --format "%f" --padding $padding $1
+}
 
 main() {
-  while true
-  do
-    output_download=""
-    output_upload=""
-    output_download_unit=""
-    output_upload_unit=""
+  local sleep_time=$(get_tmux_option "status-interval")
+  local old_value=$(get_tmux_option "@network-bandwidth-previous-value")
 
-    initial_download=$(cat /sys/class/net/$network_name/statistics/rx_bytes)
-    initial_upload=$(cat /sys/class/net/$network_name/statistics/tx_bytes)
+  if [ -z "$old_value" ]; then
+    $(set_tmux_option "@network-bandwidth-previous-value" "-")
+    echo -n "Please wait..."
+    return 0
+  else
+    local os=$(os_type)
+    local first_measure=( $(get_bandwidth $os) )
+    sleep $sleep_time
+    local second_measure=( $(get_bandwidth $os) )
+    local download_speed=$(((${second_measure[0]} - ${first_measure[0]}) / $sleep_time))
+    local upload_speed=$(((${second_measure[1]} - ${first_measure[1]}) / $sleep_time))
+    $(set_tmux_option "@network-bandwidth-previous-value" "↓$(format_speed $download_speed) • ↑$(format_speed $upload_speed)")
+  fi
 
-    sleep $INTERVAL
-
-    final_download=$(cat /sys/class/net/$network_name/statistics/rx_bytes)
-    final_upload=$(cat /sys/class/net/$network_name/statistics/tx_bytes)
-
-    total_download_bps=$(expr $final_download - $initial_download)
-    total_upload_bps=$(expr $final_upload - $initial_upload)
-
-    if [ $total_download_bps -gt 1073741824 ]; then
-      output_download=$(echo "$total_download_bps 1024" | awk '{printf "%.2f \n", $1/($2 * $2 * $2)}')
-      output_download_unit="gB/s"
-    elif [ $total_download_bps -gt 1048576 ]; then
-      output_download=$(echo "$total_download_bps 1024" | awk '{printf "%.2f \n", $1/($2 * $2)}')
-      output_download_unit="mB/s"
-    else
-      output_download=$(echo "$total_download_bps 1024" | awk '{printf "%.2f \n", $1/$2}')
-      output_download_unit="kB/s"
-    fi
-
-    if [ $total_upload_bps -gt 1073741824 ]; then
-      output_upload=$(echo "$total_download_bps 1024" | awk '{printf "%.2f \n", $1/($2 * $2 * $2)}')
-      output_upload_unit="gB/s"
-    elif [ $total_upload_bps -gt 1048576 ]; then
-      output_upload=$(echo "$total_upload_bps 1024" | awk '{printf "%.2f \n", $1/($2 * $2)}')
-      output_upload_unit="mB/s"
-    else
-      output_upload=$(echo "$total_upload_bps 1024" | awk '{printf "%.2f \n", $1/$2}')
-      output_upload_unit="kB/s"
-    fi
-
-    echo "↓ $output_download $output_download_unit • ↑ $output_upload $output_upload_unit"
-  done
+  echo -n "$(get_tmux_option "@network-bandwidth-previous-value")"
 }
+
 main
