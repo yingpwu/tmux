@@ -18,15 +18,12 @@ Configuration and options can be found at [draculatheme.com/tmux](https://dracul
 - Day, date, time, timezone
 - Current location based on network with temperature and forecast icon (if available)
 
-- Network connection status, bandwidth and SSID (bandwidth replace by xamut/tmux-network-bandwidth)(Requirements macOS: 
-brew install gawk coreutils
-Linux: apt-get install gawk net-tools coreutils)
-
+- Network connection status, bandwidth and SSID (bandwidth replace by tmux-net-speed)
 - Git branch and status
 - Battery percentage and AC power connection status
 - Refresh rate control
-- CPU usage (percentage or load average)
-- RAM usage
+- CPU usage (percentage or load average)(replace by tmux-cpu)
+- RAM usage(modified)
 - GPU usage
 - Color code based on if prefix is active or not
 - List of windows with current window highlighted
