@@ -10,7 +10,7 @@ main()
     local upload=$("$CURRENT_DIR/upload_speed.sh")
 
     ## Format output
-    local format=$(get_tmux_option @net_speed_format "D:%10s U:%10s")
+    local format=$(get_tmux_option @net_speed_format "↓%5s • ↑%5s")
     printf "$format" "$download" "$upload"
 }
 main
